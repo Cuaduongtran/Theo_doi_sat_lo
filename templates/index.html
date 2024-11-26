@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Theo dõi dữ liệu cảnh báo sạt lở</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: row; /* Chia khung hình theo chiều ngang */
+      height: 100vh; /* Chiều cao toàn màn hình */
+    }
+
+    #map {
+      width: 50%; /* Chiếm 1/2 màn hình */
+      height: 100%; /* Chiều cao toàn bộ màn hình */
+    }
+
+    .chart-container {
+      width: 50%; /* Chiếm 1/2 màn hình */
+      padding: 20px;
+      overflow-y: auto; /* Thêm thanh cuộn nếu nội dung dài */
+      background-color: #f4f4f4;
+    }
+
+    canvas {
+      max-width: 100%;
+      height: 300px;
+      margin-bottom: 20px; /* Khoảng cách giữa các biểu đồ */
+    }
+    .data-display {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      background-color: #f9f9f9;
+      border-radius: 5px;
+    }
+
+    .data-display p {
+      margin: 8px 0;
+      font-size: 16px;
+    }
+
+    .data-display span {
+      font-weight: bold;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <!-- Khung bên trái: Bản đồ -->
+  <div id="map"></div>
+  
+  <!-- Khung bên phải: Biểu đồ -->
+  <div class="chart-container">
+    <div class="data-table">
+        <h2>Thông số dữ liệu</h2>
+        <div class="data-display">
+            <!-- <h2>Thông số mới nhất</h2> -->
+            <p><strong>Thời gian:</strong> <span id="labels">--</span></p>
+            <p><strong>Nhiệt độ:</strong> <span id="temperatureData">--</span> °C</p>
+            <p><strong>Độ ẩm:</strong> <span id="humidityData">--</span> %</p>
+            <p><strong>Tổng:</strong> <span id="totalData">--</span></p>
+          </div>
+        </div>
+    <h2>Biểu đồ dữ liệu</h2>
+    <canvas id="temperature-chart"></canvas>
+    <canvas id="humidity-chart"></canvas>
+    <canvas id="total-chart"></canvas>
+  </div>
+
+  <!-- Google Maps API -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBuX-jZdn-DpKcYgAaVuCirNSYCz5B_SAE&callback=initMap" async defer></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    const apiURL = "http://127.0.0.1:5000/get_data"; // Địa chỉ API server
+
+    let tempChart, humidityChart, totalChart; // Biến lưu trữ biểu đồ
+    let marker; // Biến lưu trữ marker
+    let isClicked = false; // Trạng thái đã click vào marker
+    let isConnected = false; // Trạng thái kết nối, mặc định là true
+    let notConnected = false; // Trạng thái kết nối, mặc định là true
+    let ktra;
+    let thong_bao_loi=true;
+    let thong_ket_noi=true;
+function updateCharts() {
+  if (!isClicked) return; // Nếu chưa click vào marker, không làm gì cả
+
+  fetch(apiURL)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
+      return response.json();
+    })
+    .then((data) => {
+      if (!data || data.length === 0) {
+        throw new Error("No data received from server");
+      }
+
+      console.log("Received data:", data);
+
+      // Nếu kết nối đã mất trước đó, đổi trạng thái sang kết nối lại
+    //   if (!isConnected) {
+    //     isConnected = true;
+    //     alert("Đã kết nối lại với chương trình Python! Dữ liệu sẽ tiếp tục được cập nhật.");
+    //   }
+
+      // Lấy dữ liệu mới nhất
+      const latestData = data[data.length - 1]; // Phần tử cuối cùng trong danh sách
+
+      // Cập nhật biểu đồ (giữ nguyên logic cũ)
+      const temperatureData = data.map((item) => item.temperature);
+      const humidityData = data.map((item) => item.humidity);
+      const totalData = data.map((item) => item.total);
+      const labels = data.map((item) => item.timestamp);
+        // alert(data.length-ktra)
+      if((data.length-ktra)==0)
+      {
+
+        notConnected=true;
+        isConnected=false;
+      }
+      else
+      {
+        notConnected=false;
+        isConnected=true
+      }
+      ktra=data.length
+      if (isConnected) {
+        thong_bao_loi=true;
+        if(thong_ket_noi)
+      {
+        alert("Đã kết nối lại với chương trình Python! Dữ liệu sẽ tiếp tục được cập nhật.");
+        thong_ket_noi=false;
+      }
+    }
+          // Nếu mất kết nối, chuyển trạng thái
+          if (notConnected) {
+        thong_ket_noi=true;
+        if(thong_bao_loi)
+      {
+            marker.setIcon({
+            path: google.maps.SymbolPath.CIRCLE,
+            fillColor: "yellow", // Màu vàng khi mất kết nối
+            fillOpacity: 1,
+            strokeWeight: 1,
+            scale: 10,
+            });
+            alert("Mất kết nối tới chương trình Python! Dữ liệu sẽ không được cập nhật.");
+            thong_bao_loi=false;
+      }
+    }
+    if(!notConnected)
+    {
+      if (tempChart)  tempChart.destroy();
+      if (humidityChart) humidityChart.destroy();
+      if (totalChart) totalChart.destroy();
+
+      tempChart = new Chart(document.getElementById("temperature-chart"), {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: "Độ ẩm đất (%)",
+              data: temperatureData,
+              borderColor: "green",
+              fill: false,
+            },
+          ],
+        },
+      });
+
+      humidityChart = new Chart(document.getElementById("humidity-chart"), {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: "Thời gian mưa (%)",
+              data: humidityData,
+              borderColor: "blue",
+              fill: false,
+            },
+          ],
+        },
+      });
+
+      totalChart = new Chart(document.getElementById("total-chart"), {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: "tỉ lệ sạt lở",
+              data: totalData,
+              borderColor: "yellow",
+              fill: false,
+            },
+          ],
+        },
+      });
+
+      // Cập nhật thông số mới nhất trong HTML
+      document.getElementById("labels").textContent = latestData.timestamp || "--";
+      document.getElementById("temperatureData").textContent = latestData.temperature || "--";
+      document.getElementById("humidityData").textContent = latestData.humidity || "--";
+      document.getElementById("totalData").textContent = latestData.total || "--";
+    //    ktra= data.length
+      // Thay đổi màu marker dựa trên tổng
+      if (latestData.total > 100) {
+        marker.setIcon({
+          path: google.maps.SymbolPath.CIRCLE,
+          fillColor: "red",
+          fillOpacity: 1,
+          strokeWeight: 1,
+          scale: 10,
+        });
+      } else {
+        marker.setIcon({
+          path: google.maps.SymbolPath.CIRCLE,
+          fillColor: "green",
+          fillOpacity: 1,
+          strokeWeight: 1,
+          scale: 10,
+        });
+      }
+    }
+})
+    .catch((error) => {
+      console.error("Error fetching data:", error);
+    });
+}
+
+// Hàm khởi tạo bản đồ và bắt đầu quá trình cập nhật
+function initMap() {
+  const location = { lat: 21.028511, lng: 105.804817 }; // Vị trí Hà Nội
+  const map = new google.maps.Map(document.getElementById("map"), {
+    zoom: 15,
+    center: location,
+  });
+
+  // Tạo marker ban đầu với màu mặc định
+  marker = new google.maps.Marker({
+    position: location,
+    map: map,
+    title: "Dữ liệu từ ESP8266",
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      fillColor: "blue", // Màu mặc định ban đầu
+      fillOpacity: 1,
+      strokeWeight: 1,
+      scale: 10,
+    },
+  });
+
+  // Gắn sự kiện click vào marker
+  marker.addListener("click", () => {
+    if (!isClicked) {
+      isClicked = true; // Đánh dấu đã click vào marker
+      updateCharts(); // Gọi cập nhật lần đầu
+      setInterval(updateCharts, 10000); // Cập nhật dữ liệu mỗi 10 giây
+    }
+  });
+}
+
+  </script>
+</body>
+</html>
