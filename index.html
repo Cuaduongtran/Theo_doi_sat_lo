@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP8266 Data Monitor</title>
+</head>
+<body>
+    <h1>ESP8266 Data Monitor</h1>
+    <p>Độ ẩm: <span id="humidity">--</span>%</p>
+    <p>Thời gian mưa: <span id="rain-time">--</span> giây</p>
+    <p>Độ nghiêng: <span id="tilt">--</span> độ</p>
+
+    <script>
+        // Fetch dữ liệu từ file JSON
+        async function fetchData() {
+            const response = await fetch('data.json');
+            const data = await response.json();
+
+            document.getElementById('humidity').innerText = data.humidity;
+            document.getElementById('rain-time').innerText = data.rain_time;
+            document.getElementById('tilt').innerText = data.tilt;
+        }
+
+        setInterval(fetchData, 5000); // Cập nhật mỗi 5 giây
+        fetchData(); // Lần đầu tiên
+    </script>
+</body>
+</html>
